@@ -1,0 +1,9 @@
+(
+    \name: "OSCRPC",
+    \summary: "Implementing a RPC protocoll via OSC",
+    \author: "Dennis Scheiba",
+    \isCompatible: { Main.versionAtMost(3, 10).not },
+    \since: "2023",
+    \version: 0.1,
+    \dependencies: ["https://github.com/musikinformatik/JSONlib.git"],
+)

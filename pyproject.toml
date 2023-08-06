@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+requires-python = ">=3.9"
+name = "osc_rpc"
+version = "0.1"
+dependencies = [
+    "python-osc >= 1.8"
+]
+
+[tool.autoflake]
+check = true
+
+[tool.mypy]
+python_version = 3.10
+pretty = true
