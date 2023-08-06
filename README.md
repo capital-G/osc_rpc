@@ -1,6 +1,6 @@
 # OSC RPC
 
-A [remote procedure call](https://en.wikipedia.org/wiki/Remote_procedure_call) library that allows easy integration of Python functionality into SuperCollider by providing a protocol for calling Python functions from within SuperCollider and receiving their results.
+A [remote procedure call](https://en.wikipedia.org/wiki/Remote_procedure_call) library that allows easy integration of Python functionality into SuperCollider by providing [a JSON based protocol](https://en.wikipedia.org/wiki/JSON-RPC) for calling Python functions from within SuperCollider and receiving their results.
 
 ## Installation
 
@@ -17,6 +17,9 @@ pip install git+https://github.com/capital-G/osc_rpc.git
 Install it by executing the following commands within SuperCollider
 
 ```sclang
+// install JSON dependency
+Quarks.install("https://github.com/musikinformatik/JSONlib.git");
+
 // install the quark
 Quarks.install("https://github.com/capital-G/osc_rpc.git");
 
@@ -63,8 +66,8 @@ z = x.add(4, 5);
 // z is a OSCRPCResponse object which is acts as a wrapper for
 // an async result as it is not possible within sclang to wait
 
-z.response.postln;
-// 9
+z.result;
+// -> 9
 
 // it is also possible to pass a callback as a last argument to the
 // invokation. The callback will be called as soon as the result has

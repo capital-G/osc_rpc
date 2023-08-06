@@ -1,12 +1,12 @@
-OSCRPCResponse {
-	var <uuid;
+OSCRPCResult {
+	var <id;
 	var <method;
-	var <args;
+	var <params;
 	var <callback;
 
 	var <>ready;
-	var <response;
-	var <>fault;
+	var <result;
+	var <>error;
 
 	*new {|uuid, method, args, callback|
 		^this.newCopyArgs(uuid, method, args, callback).init;
@@ -16,10 +16,10 @@ OSCRPCResponse {
 		ready = false;
 	}
 
-	response_ {|newResponse|
-		response = newResponse;
-		if(callback.notNil.and(fault.isNil), {
-			callback.value(newResponse);
+	result_ {|newResult|
+		result = newResult;
+		if(callback.notNil.and(error.isNil), {
+			callback.value(newResult);
 		});
 	}
 }
@@ -40,23 +40,23 @@ OSCRPCClient {
 		responses = ();
 		responder = OSCFunc({|m|
 			var payload = JSONlib.convertToSC(m[1]);
-			var isNull = payload.response.value.isNil;
+			var isNull = payload.result.value.isNil;
 
-			if(payload.fault.value.notNil, {
-				"RPC failed: %".format(payload.fault).postln;
+			if(payload.error.value.notNil, {
+				"RPC % failed: %".format(payload.id, payload.error).postln;
 			});
-			responses[payload.uuid].fault = payload.fault.value;
-			responses[payload.uuid].response = if(isNull, {nil}, {payload.response});
-			responses[payload.uuid].ready = true;
+			responses[payload.id].error = payload.error.value;
+			responses[payload.id].result = if(isNull, {nil}, {payload.result});
+			responses[payload.id].ready = true;
 		}, path: "/rpc/_reply");
 	}
 
 	getMethods {
-		this.perform("_methods".asSymbol, args: [{|m| m.do({|f| f.postln})}]);
+		this.perform("_get_methods".asSymbol, args: [{|m| m.do({|f| f.postln})}]);
 	}
 
     doesNotUnderstand { | selector ...args |
-		var uuid = UniqueID.next;
+		var id = UniqueID.next;
 		var response;
 		var callback = {};
 		var payload;
@@ -67,23 +67,24 @@ OSCRPCClient {
 		});
 
 		payload = (
-			arguments: args,
-			uuid: uuid,
+			params: args,
+			id: id,
+			method: selector,
 		);
 		NetAddr(hostname, port).sendMsg(
 			"/rpc/%".format(selector),
 			JSONlib.convertToJSON(payload)
 		);
-		response = OSCRPCResponse(uuid, selector, args, callback);
-		responses[uuid] = response;
+		response = OSCRPCResult(id, "/rpc/call", args, callback);
+		responses[id] = response;
 
 		// check for timeout
 		Task({
 			timeout.wait;
-			if(responses[uuid].ready.not, {
-				"RPC '%(%)' timed out".format(selector, args.join(", ")).postln;
-				responses[uuid].ready = true;
-				responses[uuid].fault = "timeout";
+			if(responses[id].ready.not, {
+				"RPC % '%(%)' timed out".format(id, selector, args.join(", ")).postln;
+				responses[id].ready = true;
+				responses[id].fault = "timeout";
 			});
 		}).start;
 		^response;

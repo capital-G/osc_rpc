@@ -1,7 +1,7 @@
 import inspect
 import json
 import logging
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass
 from typing import Any, Callable, Dict, List, Optional, Tuple, overload
 
 from pythonosc.dispatcher import Dispatcher
@@ -13,16 +13,18 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class RPCRequest:
-    uuid: int
-    address: str
-    arguments: List[str] = field(default_factory=list)
+    method: str
+    id: Optional[int]
+    params: Optional[List[str]] = None
+    jsonrpc: str = "2.0"
 
 
 @dataclass
 class RPCResponse:
-    uuid: int
-    response: Any
-    fault: Optional[str] = None
+    id: int
+    result: Optional[Any]
+    error: Optional[str] = None
+    jsonrpc: str = "2.0"
 
 
 class OSCRPCServer(Dispatcher, ForkingOSCUDPServer):
@@ -43,6 +45,7 @@ class OSCRPCServer(Dispatcher, ForkingOSCUDPServer):
 
     def register_function(self, function: Callable, name: Optional[str] = None):
         # do not use map directly b/c we want to extract the reply address
+        # and wrap and respond to the call respectively
         self._call_map[self._get_func_name(function, name)] = function
 
     @overload
@@ -62,44 +65,50 @@ class OSCRPCServer(Dispatcher, ForkingOSCUDPServer):
         self, reply_address: Tuple[str, int], osc_address: str, *osc_args
     ) -> None:
         try:
-            message = RPCRequest(address=osc_address, **json.loads(osc_args[0]))
-        except TypeError:
-            logger.error(f"Received malformed OSC content: {osc_args}")
+            message = RPCRequest(**json.loads(osc_args[0]))
+        except TypeError as e:
+            logger.error(f"Received malformed OSC content: {osc_args} - error: {e}")
             return
 
-        if osc_address == "/rpc/_methods":
+        if message.method == "_get_methods":
             return self._send_reply(
                 reply_address,
-                message=RPCResponse(uuid=message.uuid, response=self._list_methods()),
+                message=RPCResponse(id=message.id, result=self._get_methods()),
             )
 
-        if (rpc_method := osc_address.replace("/rpc/", "")) in self._call_map.keys():
+        logger.debug(f"Received message {message}")
+
+        if message.method in self._call_map.keys():
             try:
+                logger.info(f"Call '{message.method}' with params {message.params}")
                 return self._send_reply(
                     reply_address,
                     message=RPCResponse(
-                        uuid=message.uuid,
-                        response=self._call_map.get(rpc_method)(*message.arguments),
+                        id=message.id,
+                        result=self._call_map.get(message.method)(*message.params),
                     ),
                 )
             except Exception as e:
+                logger.info(
+                    f"Failed to call '{message.method}' with params {message.params} - {e}"
+                )
                 return self._send_reply(
                     reply_address,
                     message=RPCResponse(
-                        uuid=message.uuid,
-                        response=None,
-                        fault=str(e),
+                        id=message.id,
+                        result=None,
+                        error=str(e),
                     ),
                 )
         else:
-            error_message = f"Received unknown procedure '{rpc_method}' with args {message.arguments}"
+            error_message = f"Received unknown procedure '{message.method}' with args {message.params}"
             logger.error(error_message)
             return self._send_reply(
                 reply_address,
                 message=RPCResponse(
-                    uuid=message.uuid,
-                    response=None,
-                    fault=error_message,
+                    id=message.id,
+                    result=None,
+                    error=error_message,
                 ),
             )
 
@@ -109,7 +118,7 @@ class OSCRPCServer(Dispatcher, ForkingOSCUDPServer):
             address="/rpc/_reply", value=payload
         )
 
-    def _list_methods(self) -> List[str]:
+    def _get_methods(self) -> List[str]:
         l: List[str] = []
         for name, f in self._call_map.items():
             l.append(f"{name}{inspect.signature(f)}")
@@ -128,9 +137,12 @@ if __name__ == "__main__":
     def div(x: float, y: float) -> float:
         return x / y
 
+    logger.setLevel(logging.INFO)
+
     server = OSCRPCServer()
     server.register_function(add)
     server.register_function(div)
+
     try:
         transport, protocol = server.serve_forever()
     except KeyboardInterrupt:
