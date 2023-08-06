@@ -1,0 +1,68 @@
+TITLE:: OSCRPCClient
+summary:: Remote Procedure Call Client
+categories:: External Control>OSC>Matchers
+related:: Classes/OSCRPCResult
+
+DESCRIPTION::
+Implementing an async Remote Precedure Call (RPC) protocol for sclang to communicate with other languages in a call-response manner.
+
+
+Assuing e.g. a Python OSC RPC Server is running, it can be invocated via
+
+code::
+x = OSCRPCClient();
+
+// print all available functions
+x.getMethods;
+// add(x, y)
+
+// call `add` function
+z = x.add(4, 5);
+// z is a OSCRPCResponse object which is acts as a wrapper for
+// an async result as it is not possible within sclang to wait
+
+z.result;
+// -> 9
+
+// it is also possible to pass a callback as a last argument to the
+// invokation. The callback will be called as soon as the result has
+// been received and will receive the result as a first argument
+
+x.add(4, 5, {|r| "The result is %".format(r).postln});
+// "The result is 9"
+::
+
+CLASSMETHODS::
+
+METHOD:: new
+argument:: hostname
+IP or hostname where the OSC RPC server is running
+argument:: port
+argument:: timeout
+If within n seconds no reply was received, the call is considered abandoned.
+
+
+INSTANCEMETHODS::
+
+METHOD:: getMethods
+Prints all available RPC methods on the server.
+
+METHOD:: doesNotUnderstand
+A "hack" which allows to invoke the RPC method by calling the sclang object. This is only used internally.
+argument:: methodName
+argument::  ... args
+
+METHOD:: timeout
+
+METHOD:: hostname
+
+METHOD:: port
+
+METHOD:: responder
+
+METHOD:: responses
+
+METHOD:: init
+
+
+EXAMPLES::
