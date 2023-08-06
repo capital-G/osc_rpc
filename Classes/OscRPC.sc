@@ -8,8 +8,8 @@ OSCRPCResult {
 	var <result;
 	var <>error;
 
-	*new {|uuid, method, args, callback|
-		^this.newCopyArgs(uuid, method, args, callback).init;
+	*new {|id, method, args, callback|
+		^this.newCopyArgs(id, method, args, callback).init;
 	}
 
 	init {
@@ -55,7 +55,7 @@ OSCRPCClient {
 		this.perform("_get_methods".asSymbol, args: [{|m| m.do({|f| f.postln})}]);
 	}
 
-    doesNotUnderstand { | selector ...args |
+    doesNotUnderstand { | methodName ...args |
 		var id = UniqueID.next;
 		var response;
 		var callback = {};
@@ -69,20 +69,25 @@ OSCRPCClient {
 		payload = (
 			params: args,
 			id: id,
-			method: selector,
+			method: methodName,
 		);
 		NetAddr(hostname, port).sendMsg(
 			"/rpc/call",
 			JSONlib.convertToJSON(payload)
 		);
-		response = OSCRPCResult(id, "/rpc/call", args, callback);
+		response = OSCRPCResult(
+			id: id,
+			method: methodName,
+			args: args,
+			callback: callback
+		);
 		responses[id] = response;
 
 		// check for timeout
 		Task({
 			timeout.wait;
 			if(responses[id].ready.not, {
-				"RPC % '%(%)' timed out".format(id, selector, args.join(", ")).postln;
+				"RPC % '%(%)' timed out".format(id, methodName, args.join(", ")).postln;
 				responses[id].ready = true;
 				responses[id].fault = "timeout";
 			});
