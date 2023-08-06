@@ -72,7 +72,7 @@ OSCRPCClient {
 			method: selector,
 		);
 		NetAddr(hostname, port).sendMsg(
-			"/rpc/%".format(selector),
+			"/rpc/call",
 			JSONlib.convertToJSON(payload)
 		);
 		response = OSCRPCResult(id, "/rpc/call", args, callback);

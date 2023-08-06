@@ -64,6 +64,11 @@ class OSCRPCServer(Dispatcher, ForkingOSCUDPServer):
     def _handle_call(
         self, reply_address: Tuple[str, int], osc_address: str, *osc_args
     ) -> None:
+        if osc_address != "/rpc/call":
+            logger.info(
+                f"Received non RPC OSC Message on path '{osc_address}': {osc_args}"
+            )
+            return
         try:
             message = RPCRequest(**json.loads(osc_args[0]))
         except TypeError as e:
