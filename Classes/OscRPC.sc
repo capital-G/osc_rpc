@@ -55,7 +55,7 @@ OSCRPCClient {
 		this.perform("_get_methods".asSymbol, args: [{|m| m.do({|f| f.postln})}]);
 	}
 
-    doesNotUnderstand { | methodName ...args |
+	doesNotUnderstand { | methodName ...args |
 		var id = UniqueID.next;
 		var response;
 		var callback = {};
@@ -93,5 +93,5 @@ OSCRPCClient {
 			});
 		}).start;
 		^response;
-    }
+	}
 }
